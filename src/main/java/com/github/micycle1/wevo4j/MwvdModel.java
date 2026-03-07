@@ -16,7 +16,11 @@ public final class MwvdModel {
 
     public record MovIsectId(int s1, int s2, boolean isLeft, boolean isFirst) {}
     public record ArcId(MovIsectId from, MovIsectId to) {}
-    public record SwitchMark(double sqTime, boolean wf) {}
+    public record SwitchMark(double sqTime, Coordinate p, boolean wf) {
+        public SwitchMark {
+            p = new Coordinate(p.x, p.y);
+        }
+    }
     public record IsectPair(MovingIntersection first, MovingIntersection second) {}
     public record ExpandResult(boolean checkBothSides, boolean leftFlag) {}
 
@@ -307,9 +311,9 @@ public final class MwvdModel {
         }
         public Coordinate pointAt(double t) { return traj.pointAt(t); }
         
-        public void setIsWfVert(double t, boolean value) {
+        public void setIsWfVert(double t, Coordinate p, boolean value) {
             wf = value;
-            switches.add(new SwitchMark(t, value));
+            switches.add(new SwitchMark(t, p, value));
         }
     }
 
@@ -361,7 +365,7 @@ public final class MwvdModel {
             return containsArc(new ArcId(left.id(), right.id()), false);
         }
 
-        public void spawnArc(double t, MovingIntersection i1, MovingIntersection i2, boolean isActive, boolean pierces) {
+        public void spawnArc(double t, Coordinate p, MovingIntersection i1, MovingIntersection i2, boolean isActive, boolean pierces) {
             if (!active) return;
             MovingIntersection from = isActive ? i1 : i2;
             MovingIntersection to = isActive ? i2 : i1;
@@ -370,12 +374,11 @@ public final class MwvdModel {
             if (isects.isEmpty()) {
                 if (isActive) insertArc(from.id(), to.id(), false);
                 insertArc(to.id(), from.id(), true);
-                insertIsect(i1); i1.setIsWfVert(t, true);
-                insertIsect(i2); i2.setIsWfVert(t, true);
+                insertIsect(i1); i1.setIsWfVert(t, p, true);
+                insertIsect(i2); i2.setIsWfVert(t, p, true);
                 return;
             }
 
-            Coordinate p = i1.traj.start().p;
             MovingIntersection left = searchNeighbor(t, p, true);
             MovingIntersection right = searchNeighbor(t, p, false);
             assert left != null && right != null;
@@ -387,12 +390,12 @@ public final class MwvdModel {
                 insertArc(left.id(), from.id(), onWf);
                 if (isActive) insertArc(from.id(), to.id(), pierces);
                 insertArc(to.id(), right.id(), onWf);
-                insertIsect(i1); i1.setIsWfVert(t, onWf || (isActive && pierces));
-                insertIsect(i2); i2.setIsWfVert(t, onWf || (isActive && pierces));
+                insertIsect(i1); i1.setIsWfVert(t, p, onWf || (isActive && pierces));
+                insertIsect(i2); i2.setIsWfVert(t, p, onWf || (isActive && pierces));
             }
         }
 
-        public IsectPair deleteArc(double t, MovingIntersection from, MovingIntersection to, boolean isActive) {
+        public IsectPair deleteArc(double t, Coordinate p, MovingIntersection from, MovingIntersection to, boolean isActive) {
             IsectPair newArc = null;
 
             if (arcs.size() > 2) {
@@ -427,15 +430,15 @@ public final class MwvdModel {
                 if (arcs.isEmpty()) active = isActive;
             }
 
-            if (isects.remove(from.id()) != null) from.setIsWfVert(t, false);
-            if (isects.remove(to.id()) != null) to.setIsWfVert(t, false);
+            if (isects.remove(from.id()) != null) from.setIsWfVert(t, p, false);
+            if (isects.remove(to.id()) != null) to.setIsWfVert(t, p, false);
 
             return newArc;
         }
 
-        public IsectPair deleteArcUnordered(double t, MovingIntersection a, MovingIntersection b, boolean isActive) {
-            if (containsArc(new ArcId(a.id(), b.id()), false)) return deleteArc(t, a, b, isActive);
-            if (containsArc(new ArcId(b.id(), a.id()), false)) return deleteArc(t, b, a, isActive);
+        public IsectPair deleteArcUnordered(double t, Coordinate p, MovingIntersection a, MovingIntersection b, boolean isActive) {
+            if (containsArc(new ArcId(a.id(), b.id()), false)) return deleteArc(t, p, a, b, isActive);
+            if (containsArc(new ArcId(b.id(), a.id()), false)) return deleteArc(t, p, b, a, isActive);
             return null;
         }
 

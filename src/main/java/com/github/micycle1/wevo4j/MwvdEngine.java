@@ -128,7 +128,7 @@ public final class MwvdEngine {
         assert ev.traj1.isLeft && !ev.traj2.isLeft;
 
         if (valid) {
-            off.spawnArc(ev.sqTime, i1, i2, dom, pierces);
+            off.spawnArc(ev.sqTime, ev.p, i1, i2, dom, pierces);
             checkEdgeEv(off, ev.sqTime, i1, pierces ? !dom : dom);
             checkEdgeEv(off, ev.sqTime, i2, pierces ? dom : !dom);
         }
@@ -156,7 +156,7 @@ public final class MwvdEngine {
 
     private void process(MwvdEvents.DomEvent ev, boolean dom) {
         MwvdModel.OffCircle off = offCircs.get(ev.site.id);
-        MwvdModel.IsectPair pair = off.deleteArc(ev.sqTime, ev.isect1, ev.isect2, dom);
+        MwvdModel.IsectPair pair = off.deleteArc(ev.sqTime, ev.p, ev.isect1, ev.isect2, dom);
         if (pair != null) checkEdgeEv(off, ev.sqTime, pair.first(), pair.second());
     }
 
@@ -209,9 +209,9 @@ public final class MwvdEngine {
             else checkEdgeEv(medC, t, i1, chk.leftFlag());
             checkEdgeEv(lowC, t, i1, left3);
 
-            if (wf2 && wf3) { i1.setIsWfVert(t, true); i2.setIsWfVert(t, false); i3.setIsWfVert(t, false); }
-            else if (wf2 && !wf3) { i1.setIsWfVert(t, true); i2.setIsWfVert(t, false); i3.setIsWfVert(t, true); }
-            else if (!wf2 && !wf3) i1.setIsWfVert(t, false);
+            if (wf2 && wf3) { i1.setIsWfVert(t, edgeEv.p, true); i2.setIsWfVert(t, edgeEv.p, false); i3.setIsWfVert(t, edgeEv.p, false); }
+            else if (wf2 && !wf3) { i1.setIsWfVert(t, edgeEv.p, true); i2.setIsWfVert(t, edgeEv.p, false); i3.setIsWfVert(t, edgeEv.p, true); }
+            else if (!wf2 && !wf3) i1.setIsWfVert(t, edgeEv.p, false);
             return;
         }
 
@@ -238,9 +238,9 @@ public final class MwvdEngine {
             checkEdgeEv(medC, t, i3, left2);
             checkEdgeEv(lowC, t, i2, left3);
 
-            if (wf1 && wf3) { i1.setIsWfVert(t, false); i2.setIsWfVert(t, true); i3.setIsWfVert(t, false); }
-            else if (wf1 && !wf3) { i1.setIsWfVert(t, false); i2.setIsWfVert(t, true); i3.setIsWfVert(t, true); }
-            else if (!wf1 && !wf3) i2.setIsWfVert(t, false);
+            if (wf1 && wf3) { i1.setIsWfVert(t, edgeEv.p, false); i2.setIsWfVert(t, edgeEv.p, true); i3.setIsWfVert(t, edgeEv.p, false); }
+            else if (wf1 && !wf3) { i1.setIsWfVert(t, edgeEv.p, false); i2.setIsWfVert(t, edgeEv.p, true); i3.setIsWfVert(t, edgeEv.p, true); }
+            else if (!wf1 && !wf3) i2.setIsWfVert(t, edgeEv.p, false);
         }
     }
 
@@ -259,13 +259,13 @@ public final class MwvdEngine {
         boolean wf1 = i1.wf, wf2 = i2.wf, wf3 = i3.wf;
         boolean left1 = hi.collapseArc(t, i2, i3);
         boolean left2 = med.collapseArc(t, i1, i3);
-        low.deleteArcUnordered(t, i1, i2, false);
+        low.deleteArcUnordered(t, edgeEv.p, i1, i2, false);
 
         checkEdgeEv(hi, t, i3, left1);
         checkEdgeEv(med, t, i3, left2);
 
-        if (wf1 && wf2 && wf3) { i1.setIsWfVert(t, false); i2.setIsWfVert(t, false); i3.setIsWfVert(t, false); }
-        else if (wf1 && wf2) { i1.setIsWfVert(t, false); i2.setIsWfVert(t, false); i3.setIsWfVert(t, true); }
+        if (wf1 && wf2 && wf3) { i1.setIsWfVert(t, edgeEv.p, false); i2.setIsWfVert(t, edgeEv.p, false); i3.setIsWfVert(t, edgeEv.p, false); }
+        else if (wf1 && wf2) { i1.setIsWfVert(t, edgeEv.p, false); i2.setIsWfVert(t, edgeEv.p, false); i3.setIsWfVert(t, edgeEv.p, true); }
         return true;
     }
 
@@ -309,7 +309,7 @@ public final class MwvdEngine {
             double endT = mi.traj.end().sqTime;
 
             if (sw.get(sw.size() - 1).wf() && g.lt(sw.get(sw.size() - 1).sqTime(), endT)) {
-                sw.add(new MwvdModel.SwitchMark(endT, false));
+                sw.add(new MwvdModel.SwitchMark(endT, mi.traj.end().p, false));
             }
 
             for (int i = 0; i + 1 < sw.size(); i++) {
@@ -322,12 +322,14 @@ public final class MwvdEngine {
                 MwvdModel.TrajectorySection sec = sectionAt(mi.traj, tm);
                 if (!(sec instanceof MwvdModel.PointPointSection pp)) continue;
 
-                Coordinate p1 = mi.pointAt(t1);
-                Coordinate p2 = mi.pointAt(t2);
+                Coordinate p1 = sw.get(i).p();
+                Coordinate p2 = sw.get(i + 1).p();
 
                 if (pp.equal) {
                     out.add(new MwvdExporter.SegPiece(
                             new MwvdGeom.Segment(p1, p2),
+                            p1,
+                            p2,
                             pp.site1.id, pp.site2.id));
                 } else {
                     double a1 = g.angle(pp.arc.circle().c(), p1);
@@ -339,6 +341,8 @@ public final class MwvdEngine {
 
                     out.add(new MwvdExporter.ArcPiece(
                             arc,
+                            p1,
+                            p2,
                             pp.site1.id, pp.site2.id));
                 }
             }
